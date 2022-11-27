@@ -25,7 +25,7 @@ func NewTx[T any](ctx context.Context, db Repository, opts *sql.TxOptions) (Tran
 	return Transaction[T]{
 		opts:   opts,
 		tx:     sqlTx,
-		logger: log.New(os.Stdout),
+		logger: log.New(os.Stdout, "", 5),
 	}, nil
 }
 
@@ -58,4 +58,8 @@ func (t Transaction[T]) checkTransaction(err error) error {
 		t.logger.Fatalf("transaction commit error: %w", err)
 	}
 	return err
+}
+
+func (t Transaction[T]) GetTx() *sql.Tx {
+	return t.tx
 }
