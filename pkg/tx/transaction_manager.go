@@ -59,3 +59,7 @@ func (t Transaction[T]) checkTransaction(err error) error {
 	}
 	return err
 }
+
+func (t Transaction[T]) GetTx() *sql.Tx {
+	return t.tx
+}
