@@ -49,13 +49,13 @@ func (t Transaction[T]) checkTransaction(err error) error {
 	if err != nil {
 		txErr := t.tx.Rollback()
 		if txErr != nil {
-			t.logger.Fatalf("transaction rollback error: %w", txErr)
+			t.logger.Printf("transaction rollback error: %w", txErr)
 		}
 		return err
 	}
 	err = t.tx.Commit()
 	if err != nil {
-		t.logger.Fatalf("transaction commit error: %w", err)
+		t.logger.Printf("transaction commit error: %w", err)
 	}
 	return err
 }
