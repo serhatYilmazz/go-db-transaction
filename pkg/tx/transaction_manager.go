@@ -7,45 +7,54 @@ import (
 	"os"
 )
 
-type Transaction[T any] struct {
+type TransactionManager[T any] interface {
+	ExecTx(ctx context.Context, fn Fn[T], repository Repository[T]) (T, error)
+	GetTx() *sql.Tx
+}
+
+type transaction[T any] struct {
 	opts   *sql.TxOptions
 	tx     *sql.Tx
 	logger *log.Logger
 }
 
-type Fn[T any] func(ctx context.Context, tx Transaction[T]) (T, error)
+type Fn[T any] func(ctx context.Context, tx TransactionManager[T]) (T, error)
 
-func NewTx[T any](ctx context.Context, db Repository, opts *sql.TxOptions) (Transaction[T], error) {
-	var tx Transaction[T]
+func NewTransaction[T any]() TransactionManager[T] {
+	return &transaction[T]{}
+}
+
+func newTx[T any](ctx context.Context, db Repository[T], opts *sql.TxOptions) (transaction[T], error) {
+	var tx transaction[T]
 	sqlTx, err := db.GetDB().BeginTx(ctx, opts)
 	if err != nil {
 		return tx, err
 	}
 
-	return Transaction[T]{
+	return transaction[T]{
 		opts:   opts,
 		tx:     sqlTx,
 		logger: log.New(os.Stdout, "", 5),
 	}, nil
 }
 
-func ExecTx[T any](ctx context.Context, fn Fn[T], repository Repository) (T, error) {
+func (t transaction[T]) ExecTx(ctx context.Context, fn Fn[T], repository Repository[T]) (T, error) {
 	var err error
 	var res T
-	newTx, err := NewTx[T](ctx, repository, nil)
+	nTx, err := newTx[T](ctx, repository, nil)
 	if err != nil {
 		return res, err
 	}
 
-	res, err = fn(ctx, newTx)
+	res, err = fn(ctx, nTx)
 	if err != nil {
-		return res, newTx.checkTransaction(err)
+		return res, nTx.checkTransaction(err)
 	}
 
-	return res, newTx.checkTransaction(err)
+	return res, nTx.checkTransaction(err)
 }
 
-func (t Transaction[T]) checkTransaction(err error) error {
+func (t transaction[T]) checkTransaction(err error) error {
 	if err != nil {
 		txErr := t.tx.Rollback()
 		if txErr != nil {
@@ -60,6 +69,22 @@ func (t Transaction[T]) checkTransaction(err error) error {
 	return err
 }
 
-func (t Transaction[T]) GetTx() *sql.Tx {
+func (t transaction[T]) GetTx() *sql.Tx {
 	return t.tx
+}
+
+type mockTransactionManager[T any] struct {
+}
+
+func NewMockTransaction[T any]() TransactionManager[T] {
+	return &mockTransactionManager[T]{}
+}
+
+func (m mockTransactionManager[T]) GetTx() *sql.Tx {
+	return nil
+}
+
+func (m mockTransactionManager[T]) ExecTx(ctx context.Context, fn Fn[T], repository Repository[T]) (T, error) {
+	mockTransactionManager := mockTransactionManager[T]{}
+	return fn(ctx, mockTransactionManager)
 }
