@@ -8,7 +8,7 @@ import (
 )
 
 type TransactionManager[T any] interface {
-	ExecTx(ctx context.Context, fn Fn[T], repository Repository) (T, error)
+	ExecTx(ctx context.Context, fn Fn[T], repository Repository[T]) (T, error)
 	GetTx() *sql.Tx
 }
 
@@ -24,7 +24,7 @@ func NewTransaction[T any]() TransactionManager[T] {
 	return &transaction[T]{}
 }
 
-func newTx[T any](ctx context.Context, db Repository, opts *sql.TxOptions) (transaction[T], error) {
+func newTx[T any](ctx context.Context, db Repository[T], opts *sql.TxOptions) (transaction[T], error) {
 	var tx transaction[T]
 	sqlTx, err := db.GetDB().BeginTx(ctx, opts)
 	if err != nil {
@@ -38,7 +38,7 @@ func newTx[T any](ctx context.Context, db Repository, opts *sql.TxOptions) (tran
 	}, nil
 }
 
-func (t transaction[T]) ExecTx(ctx context.Context, fn Fn[T], repository Repository) (T, error) {
+func (t transaction[T]) ExecTx(ctx context.Context, fn Fn[T], repository Repository[T]) (T, error) {
 	var err error
 	var res T
 	nTx, err := newTx[T](ctx, repository, nil)
@@ -84,7 +84,7 @@ func (m mockTransactionManager[T]) GetTx() *sql.Tx {
 	return nil
 }
 
-func (m mockTransactionManager[T]) ExecTx(ctx context.Context, fn Fn[T], repository Repository) (T, error) {
+func (m mockTransactionManager[T]) ExecTx(ctx context.Context, fn Fn[T], repository Repository[T]) (T, error) {
 	mockTransactionManager := mockTransactionManager[T]{}
 	return fn(ctx, mockTransactionManager)
 }
